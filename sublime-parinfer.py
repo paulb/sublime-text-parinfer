@@ -115,8 +115,8 @@ class ParinferApplyCommand(sublime_plugin.TextCommand):
     """
     def run(self, edit, start_line = 0, end_line = 0, cursor_row = 0, cursor_col = 0, result_text = ''):
         # get the current selection
-        current_selections = [(self.view.rowcol(start), self.view.rowcol(end))
-                              for start, end in self.view.sel()]
+        current_selections = [(self.view.rowcol(region.a), self.view.rowcol(region.b))
+                              for region in self.view.sel()]
 
         # update the buffer
         start_point = self.view.text_point(start_line, 0)
