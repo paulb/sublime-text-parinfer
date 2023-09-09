@@ -286,6 +286,7 @@ class Parinfer(sublime_plugin.EventListener):
         else:
             debug_log("File has been loaded, but do not start Parinfer")
 
+<<<<<<< Updated upstream
     # called when a view is closed
     def on_close(self, view):
         buffer_id = view.buffer_id()
@@ -294,6 +295,10 @@ class Parinfer(sublime_plugin.EventListener):
         # clear the buffers_with_modifications cache if this is the last view into that Buffer
         if len(clones) == 0 and buffer_id in self.buffers_with_modifications:
             del self.buffers_with_modifications[buffer_id]
+=======
+    def on_post_save(self, view):
+        self.on_load(view)
+>>>>>>> Stashed changes
 
 class ParinferToggleOnCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
