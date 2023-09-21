@@ -242,6 +242,26 @@ class Parinfer(sublime_plugin.EventListener):
         if self.pending == 0:
             view.run_command('parinfer_inspect')
 
+    # TODO Check status and only activate if not already active.
+    def maybe_activate(self, view, debug_message):
+        if self.should_start(view):
+            debug_log("View is ready, activating Parinfer")
+            run_paren_mode_on_open = get_setting(view, "run_paren_mode_when_file_opened")
+            if run_paren_mode_on_open == True:
+                view.run_command('parinfer_run_paren_current_buffer', { 'drop_into_indent_mode_after': True })
+            else:
+                # start Waiting mode
+                view.set_status(STATUS_KEY, PENDING_STATUS)
+        else:
+            debug_log(debug_message)
+
+    def on_activated(self, view):
+        self.maybe_activate(view, "View is active, but not activating Parinfer")
+
+    # fires when a file is finished loading
+    def on_load(self, view):
+        self.maybe_activate(view, "File has been loaded, but not activating Parinfer")
+
     # fires everytime a buffer receives a modification
     def on_modified(self, view):
         # Flag this buffer as being modified
@@ -272,6 +292,7 @@ class Parinfer(sublime_plugin.EventListener):
         else:
             debug_log("selection change, buffer has NOT been modified, do nothing")
 
+<<<<<<< Updated upstream
     # fires when a file is finished loading
     def on_load(self, view):
         if self.should_start(view):
@@ -298,6 +319,11 @@ class Parinfer(sublime_plugin.EventListener):
 =======
     def on_post_save(self, view):
         self.on_load(view)
+>>>>>>> Stashed changes
+=======
+    def on_post_save(self, view):
+        self.maybe_activate(view, "File has been saved, but not activating Parinfer")
+
 >>>>>>> Stashed changes
 
 class ParinferToggleOnCommand(sublime_plugin.TextCommand):
