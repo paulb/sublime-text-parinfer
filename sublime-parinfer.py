@@ -242,6 +242,19 @@ class Parinfer(sublime_plugin.EventListener):
         if self.pending == 0:
             view.run_command('parinfer_inspect')
 
+    # TODO Check status and only activate if not already active.
+    def maybe_activate(self, view, debug_message):
+        if self.should_start(view):
+            debug_log("View is ready, activating Parinfer")
+            run_paren_mode_on_open = get_setting(view, "run_paren_mode_when_file_opened")
+            if run_paren_mode_on_open == True:
+                view.run_command('parinfer_run_paren_current_buffer', { 'drop_into_indent_mode_after': True })
+            else:
+                # start Waiting mode
+                view.set_status(STATUS_KEY, PENDING_STATUS)
+        else:
+            debug_log(debug_message)
+
     # fires everytime a buffer receives a modification
     def on_modified(self, view):
         # Flag this buffer as being modified
