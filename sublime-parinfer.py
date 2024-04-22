@@ -37,7 +37,11 @@ STATUS_KEY = 'parinfer'
 PENDING_STATUS = 'Parinfer: Waiting'
 INDENT_STATUS = 'Parinfer: Indent'
 PAREN_STATUS = 'Parinfer: Paren'
-ALL_STATUSES = [PENDING_STATUS, INDENT_STATUS, PAREN_STATUS]
+# Set when a user explicitly disables Parinfer.
+# This allows distinguishing between when no mode is set
+# and when the user deliberately wants Parinfer disabled.
+DISABLED_STATUS = 'Parinfer: Disabled'
+ACTIVE_STATUSES = [PENDING_STATUS, INDENT_STATUS, PAREN_STATUS]
 PARENT_EXPRESSION_RE = re.compile(r"^\([a-zA-Z]")
 SYNTAX_LANGUAGE_RE = r"([\w\d\s]*)(\.sublime-syntax)"
 
@@ -149,7 +153,7 @@ class ParinferInspectCommand(sublime_plugin.TextCommand):
         current_status = current_view.get_status(STATUS_KEY)
 
         # exit if Parinfer is not enabled on this view
-        if current_status not in ALL_STATUSES:
+        if current_status not in ACTIVE_STATUSES:
             return
 
         whole_region = sublime.Region(0, current_view.size())
@@ -215,7 +219,7 @@ class Parinfer(sublime_plugin.EventListener):
         self.buffers_with_modifications = {}
 
     # Should we automatically start Parinfer on this file?
-    def should_start(self, view):
+    def is_enabled_for_filetype(self, view):
         # False if filename is not a string
         filename = view.file_name()
         if isinstance(filename, basestring) is not True:
@@ -235,6 +239,19 @@ class Parinfer(sublime_plugin.EventListener):
 
         # didn't find anything; do not automatically start Parinfer
         return False
+
+    def should_start(self, view):
+        status = view.get_status(STATUS_KEY)
+        debug_log(f"Parinfer checking status: {status}")
+        if status in ACTIVE_STATUSES:
+            debug_log("Parinfer is already active for this file")
+            return False
+
+        if status == DISABLED_STATUS:
+            debug_log("Parinfer is disabled by user action for this file, will not enable")
+            return False
+
+        return True
 
     # debounce intermediary
     def handle_timeout(self, view):
@@ -261,7 +278,7 @@ class Parinfer(sublime_plugin.EventListener):
     def on_selection_modified(self, view):
         # do nothing if Parinfer is not enabled
         status = view.get_status(STATUS_KEY)
-        if status not in ALL_STATUSES:
+        if status not in ACTIVE_STATUSES:
             return
 
         # run Parinfer if this is a buffer that has been modified
@@ -274,17 +291,28 @@ class Parinfer(sublime_plugin.EventListener):
 
     # fires when a file is finished loading
     def on_load(self, view):
-        if self.should_start(view):
+        if self.is_enabled_for_filetype(view):
             debug_log("File has been loaded, automatically start Parinfer")
 
             run_paren_mode_on_open = get_setting(view, "run_paren_mode_when_file_opened")
+            # Wait, does this mean it doesn't start if this is true?
             if run_paren_mode_on_open == True:
                 view.run_command('parinfer_run_paren_current_buffer', { 'drop_into_indent_mode_after': True })
-            else:
+            elif self.should_start(view):
                 # start Waiting mode
                 view.set_status(STATUS_KEY, PENDING_STATUS)
         else:
             debug_log("File has been loaded, but do not start Parinfer")
+
+    def on_post_save(self, view):
+        if not self.should_start(view):
+            return false
+
+        debug_log("Parinfer is not enabled for this file; enabling if appropriate")
+        if self.is_enabled_for_filetype(view):
+            debug_log("File has been saved with parinfer not yet configured, automatically start Parinfer")
+            # start Waiting mode
+            view.set_status(STATUS_KEY, PENDING_STATUS)
 
     # called when a view is closed
     def on_close(self, view):
@@ -294,6 +322,7 @@ class Parinfer(sublime_plugin.EventListener):
         # clear the buffers_with_modifications cache if this is the last view into that Buffer
         if len(clones) == 0 and buffer_id in self.buffers_with_modifications:
             del self.buffers_with_modifications[buffer_id]
+
 
 class ParinferToggleOnCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
@@ -308,7 +337,7 @@ class ParinferToggleOnCommand(sublime_plugin.TextCommand):
 class ParinferToggleOffCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
         # remove from the status bar
-        self.view.erase_status(STATUS_KEY)
+        self.view.set_status(STATUS_KEY, DISABLED_STATUS)
 
 
 class ParinferRunParenCurrentBuffer(sublime_plugin.TextCommand):
