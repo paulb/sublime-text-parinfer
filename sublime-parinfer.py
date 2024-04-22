@@ -29,7 +29,7 @@ except NameError:
     basestring = str
 
 # dev flag
-DEBUG_LOGGING = False
+DEBUG_LOGGING = True
 
 # constants
 DEBOUNCE_INTERVAL_MS = 50
@@ -261,11 +261,15 @@ class Parinfer(sublime_plugin.EventListener):
 
     # fires everytime a buffer receives a modification
     def on_modified(self, view):
+        debug_log("on_modified")
         # Flag this buffer as being modified
         buffer_id = view.buffer_id()
         self.buffers_with_modifications[buffer_id] = True
 
         # flip from "Pending" to "Indent Mode" on the first buffer modification
+        debug_log(f"scope: {view.scope_name(0)}")
+        debug_log(f"syntax: {view.settings().get('syntax')}")
+
         if view.get_status(STATUS_KEY) == PENDING_STATUS:
             view.set_status(STATUS_KEY, INDENT_STATUS)
 
