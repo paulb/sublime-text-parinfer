@@ -230,6 +230,7 @@ class Parinfer(sublime_plugin.EventListener):
         # not being an Iterable, so wrapped in try/catch to be defensive.
         # -- C. Oakman, 22 Feb 2023
         file_extensions = get_setting(view, 'file_extensions')
+        debug_log(f"file extensions: {file_extensions}")
         try:
             for extension in file_extensions:
                 if filename.endswith(extension):
@@ -289,6 +290,12 @@ class Parinfer(sublime_plugin.EventListener):
         else:
             debug_log("selection change, buffer has NOT been modified, do nothing")
 
+    # fires after plugin_loaded is called.
+    # allows enabling Parinfer for files on first opening Sublime Text.
+    def on_init(self, views):
+        for view in views:
+            self.on_load(view)
+
     # fires when a file is finished loading
     def on_load(self, view):
         if self.is_enabled_for_filetype(view):
@@ -305,12 +312,8 @@ class Parinfer(sublime_plugin.EventListener):
             debug_log("File has been loaded, but do not start Parinfer")
 
     def on_post_save(self, view):
-        if not self.should_start(view):
-            return false
-
-        debug_log("Parinfer is not enabled for this file; enabling if appropriate")
-        if self.is_enabled_for_filetype(view):
-            debug_log("File has been saved with parinfer not yet configured, automatically start Parinfer")
+        if self.is_enabled_for_filetype(view) and self.should_start(view):
+            debug_log("File saved with Parinfer not yet configured, enabling")
             # start Waiting mode
             view.set_status(STATUS_KEY, PENDING_STATUS)
 
