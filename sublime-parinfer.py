@@ -111,6 +111,13 @@ def find_end_parent_expression(lines, line_no):
     return max_idx
 
 
+def set_status_for_buffer(view, status):
+    view.set_status(STATUS_KEY, status)
+
+    for clone in view.clones():
+        clone.set_status(STATUS_KEY, status)
+
+
 class ParinferApplyCommand(sublime_plugin.TextCommand):
     """
     This command applies the Parinfer changes to the buffer.
@@ -311,6 +318,22 @@ class Parinfer(sublime_plugin.EventListener):
         else:
             debug_log("File has been loaded, but do not start Parinfer")
 
+    # fires on any activation, e.g. switching views.
+    # used to allow new views into the same buffer to set parinfer status,
+    # which can't be set directly through on_load for a new view.
+    def on_activated(self, view):
+        if view.get_status(STATUS_KEY):
+            return
+
+        for sibling in view.clones():
+            status = sibling.get_status(STATUS_KEY)
+            if status:
+                view.set_status(STATUS_KEY, status)
+                return
+
+        # no sibling had a status; fall back to normal detection
+        self.on_load(view)
+
     def on_post_save(self, view):
         if self.is_enabled_for_filetype(view) and self.should_start(view):
             debug_log("File saved with Parinfer not yet configured, enabling")
@@ -332,15 +355,15 @@ class ParinferToggleOnCommand(sublime_plugin.TextCommand):
         # update the status bar
         current_status = self.view.get_status(STATUS_KEY)
         if current_status == INDENT_STATUS:
-            self.view.set_status(STATUS_KEY, PAREN_STATUS)
+            set_status_for_buffer(self.view, PAREN_STATUS)
         else:
-            self.view.set_status(STATUS_KEY, INDENT_STATUS)
+            set_status_for_buffer(self.view, INDENT_STATUS)
 
 
 class ParinferToggleOffCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
         # update the status bar
-        self.view.set_status(STATUS_KEY, DISABLED_STATUS)
+        set_status_for_buffer(self.view, DISABLED_STATUS)
 
 
 class ParinferRunParenCurrentBuffer(sublime_plugin.TextCommand):
