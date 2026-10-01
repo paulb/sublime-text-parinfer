@@ -7,5 +7,9 @@
     ".rkt",
     ".janet"
   ],
+  // When true, "Parinfer: Disable" turns Parinfer off for all open views and any
+  // file opened or saved afterward, until Parinfer is enabled again or Sublime restarts.
+  // When false, disabling only affects the current view.
+  "global_toggle": false,
   "run_paren_mode_when_file_opened": false
 }
