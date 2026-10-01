@@ -45,6 +45,10 @@ ACTIVE_STATUSES = [PENDING_STATUS, INDENT_STATUS, PAREN_STATUS]
 PARENT_EXPRESSION_RE = re.compile(r"^\([a-zA-Z]")
 SYNTAX_LANGUAGE_RE = r"([\w\d\s]*)(\.sublime-syntax)"
 
+# Set when the user disables Parinfer for all views; cleared when re-enabled.
+# In-memory only, so it resets when Sublime (or this plugin) restarts.
+globally_disabled = False
+
 
 def debug_log(x):
     if DEBUG_LOGGING == True:
@@ -86,6 +90,10 @@ def get_setting(view, key):
     if settings is None:
         settings = sublime.load_settings('Parinfer.sublime-settings')
     return settings.get(key)
+
+
+def is_globally_disabled(view):
+    return globally_disabled and get_setting(view, 'global_toggle') == True
 
 
 def is_parent_expression(txt):
@@ -306,6 +314,10 @@ class Parinfer(sublime_plugin.EventListener):
     # fires when a file is finished loading
     def on_load(self, view):
         if self.is_enabled_for_filetype(view):
+            if is_globally_disabled(view):
+                view.set_status(STATUS_KEY, DISABLED_STATUS)
+                return
+
             debug_log("File has been loaded, automatically start Parinfer")
 
             run_paren_mode_on_open = get_setting(view, "run_paren_mode_when_file_opened")
@@ -335,6 +347,10 @@ class Parinfer(sublime_plugin.EventListener):
 
     def on_post_save(self, view):
         if self.is_enabled_for_filetype(view) and self.should_start(view):
+            if is_globally_disabled(view):
+                view.set_status(STATUS_KEY, DISABLED_STATUS)
+                return
+
             debug_log("File saved with Parinfer not yet configured, enabling")
             # start Waiting mode
             view.set_status(STATUS_KEY, PENDING_STATUS)
@@ -351,6 +367,15 @@ class Parinfer(sublime_plugin.EventListener):
 
 class ParinferToggleOnCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
+        global globally_disabled
+        if is_globally_disabled(self.view):
+            globally_disabled = False
+            for window in sublime.windows():
+                for view in window.views():
+                    if view.get_status(STATUS_KEY) == DISABLED_STATUS:
+                        view.set_status(STATUS_KEY, INDENT_STATUS)
+            return
+
         # update the status bar
         current_status = self.view.get_status(STATUS_KEY)
         if current_status == INDENT_STATUS:
@@ -361,8 +386,16 @@ class ParinferToggleOnCommand(sublime_plugin.TextCommand):
 
 class ParinferToggleOffCommand(sublime_plugin.TextCommand):
     def run(self, _edit):
-        # update the status bar
-        set_status_for_buffer(self.view, DISABLED_STATUS)
+        global globally_disabled
+        if get_setting(self.view, 'global_toggle') == True:
+            globally_disabled = True
+            for window in sublime.windows():
+                for view in window.views():
+                    if view.get_status(STATUS_KEY) in ACTIVE_STATUSES:
+                        view.set_status(STATUS_KEY, DISABLED_STATUS)
+        else:
+            # update the status bar
+            set_status_for_buffer(self.view, DISABLED_STATUS)
 
 
 class ParinferRunParenCurrentBuffer(sublime_plugin.TextCommand):
