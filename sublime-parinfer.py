@@ -309,8 +309,7 @@ class Parinfer(sublime_plugin.EventListener):
             debug_log("File has been loaded, automatically start Parinfer")
 
             run_paren_mode_on_open = get_setting(view, "run_paren_mode_when_file_opened")
-            # Wait, does this mean it doesn't start if this is true?
-            if run_paren_mode_on_open == True:
+            if run_paren_mode_on_open == True and self.should_start(view):
                 view.run_command('parinfer_run_paren_current_buffer', { 'drop_into_indent_mode_after': True })
             elif self.should_start(view):
                 # start Waiting mode
