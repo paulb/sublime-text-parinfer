@@ -45,9 +45,36 @@ ACTIVE_STATUSES = [PENDING_STATUS, INDENT_STATUS, PAREN_STATUS]
 PARENT_EXPRESSION_RE = re.compile(r"^\([a-zA-Z]")
 SYNTAX_LANGUAGE_RE = r"([\w\d\s]*)(\.sublime-syntax)"
 
+LEADING_NOISE_RE = re.compile(r'\A(?:\s+|;[^\n]*(?:\n|\Z))*')
+LISP_HEADS = {'ns', 'in-ns', 'comment', 'require', 'import', 'use'}
+
 # Set when the user disables Parinfer for all views; cleared when re-enabled.
 # In-memory only, so it resets when Sublime (or this plugin) restarts.
 globally_disabled = False
+
+
+def detect_parinfer_content(text):
+    """True = parinfer-compatible, False = definitely not, None = undecided."""
+    body = LEADING_NOISE_RE.sub('', text, count=1)
+    if body == '':
+        return None
+
+    if body[0] != '(':
+        return False
+
+    token = re.match(r'\(([^\s()]*)', body).group(1)
+    if token in LISP_HEADS or token.startswith('def'):
+        return True
+    # head symbol may still be mid-typing (auto-closed parens mean it's not at the end of the buffer)
+    if any(head.startswith(token) for head in LISP_HEADS | {'def'}):
+        return None
+
+    return False
+
+
+def is_plain_text(view):
+    syntax = view.syntax()
+    return syntax is None or syntax.scope == 'text.plain'
 
 
 def debug_log(x):
@@ -227,11 +254,32 @@ class ParinferInspectCommand(sublime_plugin.TextCommand):
 class Parinfer(sublime_plugin.EventListener):
     def __init__(self):
         debug_log('Parinfer plugin init')
-
         # stateful debounce counter
         self.pending = 0
-
         self.buffers_with_modifications = {}
+
+    def skip_autodetect(self, view):
+        return bool(
+            view.settings().get('is_widget')
+            or view.get_status(STATUS_KEY)
+            or view.file_name() is not None
+            or is_globally_disabled(view)
+            or not get_setting(view, 'auto_detect')
+        )
+
+    def maybe_autodetect(self, view):
+        if self.skip_autodetect(view):
+            return
+
+        if not detect_parinfer_content(view.substr(sublime.Region(0, min(view.size(), 2000)))):
+            return
+
+        if is_plain_text(view):
+            name = get_setting(view, 'default_syntax')
+            found = sublime.find_syntax_by_name(name) if name else None
+            if found:
+                view.assign_syntax(found[0])
+        view.set_status(STATUS_KEY, INDENT_STATUS)
 
     # Should we automatically start Parinfer on this file?
     def is_enabled_for_filetype(self, view):
@@ -277,6 +325,11 @@ class Parinfer(sublime_plugin.EventListener):
 
     # fires everytime a buffer receives a modification
     def on_modified(self, view):
+        self.maybe_autodetect(view)
+
+        if view.get_status(STATUS_KEY) not in ACTIVE_STATUSES:
+            return
+
         # Flag this buffer as being modified
         buffer_id = view.buffer_id()
         self.buffers_with_modifications[buffer_id] = True

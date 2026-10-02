@@ -1,4 +1,8 @@
 {
+  // When true, Parinfer will attempt to auto-detect lisp syntax for unsaved files.
+  // Must be paired with "default_syntax". No default is provided for this.
+  // If "default_syntax" is not configured, auto-detection will not enable Parinfer.
+  "auto_detect": false,
   "file_extensions": [
     ".clj",
     ".cljs",
