@@ -3,6 +3,7 @@
     ".clj",
     ".cljs",
     ".cljc",
+    ".edn",
     ".lfe",
     ".rkt",
     ".janet"
