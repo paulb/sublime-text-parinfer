@@ -361,6 +361,12 @@ class Parinfer(sublime_plugin.EventListener):
     # fires after plugin_loaded is called.
     # allows enabling Parinfer for files on first opening Sublime Text.
     def on_init(self, views):
+        global globally_disabled
+        if any(v.get_status(STATUS_KEY) == DISABLED_STATUS
+               and get_setting(v, 'global_toggle') == True
+               for v in views):
+            globally_disabled = True
+
         for view in views:
             self.on_load(view)
 
