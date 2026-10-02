@@ -346,14 +346,16 @@ class Parinfer(sublime_plugin.EventListener):
         self.on_load(view)
 
     def on_post_save(self, view):
-        if self.is_enabled_for_filetype(view) and self.should_start(view):
-            if is_globally_disabled(view):
-                view.set_status(STATUS_KEY, DISABLED_STATUS)
-                return
+        if not (self.is_enabled_for_filetype(view) and self.should_start(view)):
+            return
 
-            debug_log("File saved with Parinfer not yet configured, enabling")
-            # start Waiting mode
-            view.set_status(STATUS_KEY, PENDING_STATUS)
+        if is_globally_disabled(view):
+            view.set_status(STATUS_KEY, DISABLED_STATUS)
+            return
+
+        debug_log("File saved with Parinfer not yet configured, enabling")
+        # start Waiting mode
+        view.set_status(STATUS_KEY, PENDING_STATUS)
 
     # called when a view is closed
     def on_close(self, view):
