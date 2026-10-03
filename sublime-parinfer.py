@@ -321,6 +321,14 @@ class Parinfer(sublime_plugin.EventListener):
     def handle_timeout(self, view):
         self.pending = self.pending - 1
         if self.pending == 0:
+            # when several views share a buffer, run Parinfer on the one the user
+            # is editing in: the active view of the active window, if it is a view
+            # into this buffer. sublime.active_window() is used rather than
+            # view.window() because the same buffer can be open in more than one window
+            window = sublime.active_window()
+            active_view = window.active_view() if window is not None else None
+            if active_view is not None and active_view.buffer_id() == view.buffer_id():
+                view = active_view
             view.run_command('parinfer_inspect')
 
     # fires everytime a buffer receives a modification
