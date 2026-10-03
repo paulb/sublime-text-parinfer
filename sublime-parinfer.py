@@ -437,7 +437,6 @@ class ParinferToggleOnCommand(sublime_plugin.TextCommand):
                         view.set_status(STATUS_KEY, INDENT_STATUS)
             return
 
-        # update the status bar
         current_status = self.view.get_status(STATUS_KEY)
         if current_status == INDENT_STATUS:
             set_status_for_buffer(self.view, PAREN_STATUS)
@@ -455,7 +454,6 @@ class ParinferToggleOffCommand(sublime_plugin.TextCommand):
                     if view.get_status(STATUS_KEY) in ACTIVE_STATUSES:
                         view.set_status(STATUS_KEY, DISABLED_STATUS)
         else:
-            # update the status bar
             set_status_for_buffer(self.view, DISABLED_STATUS)
 
 
